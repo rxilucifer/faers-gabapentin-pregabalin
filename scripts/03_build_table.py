@@ -2,17 +2,46 @@
 from pathlib import Path
 import pandas as pd
 
-ASC = Path("data/raw/faers_ascii_2024q1/ASCII")
+QUARTERS = ["2024q1", "2024q2", "2024q3", "2024q4"]
 OUT = Path("data/processed")
 OUT.mkdir(parents=True, exist_ok=True)
 
 
-def load(name):
-    return pd.read_csv(ASC / f"{name}24Q1.txt", sep="$", dtype=str,
-                       quoting=3, encoding="latin-1", low_memory=False)
+def load(name, cols):
+    """Read one FAERS table from every quarter and stack them together."""
+    parts = []
+    for q in QUARTERS:
+        yyq = q[2:].upper()  # "2024q1" -> "24Q1"
+        path = Path(f"data/raw/faers_ascii_{q}/ASCII/{name}{yyq}.txt")
+        parts.append(pd.read_csv(path, sep="$", dtype=str, quoting=3,
+                                 encoding="latin-1", low_memory=False,
+                                 usecols=cols))
+    return pd.concat(parts, ignore_index=True)
 
 
-demo, drug, reac = load("DEMO"), load("DRUG"), load("REAC")
+def load_deleted():
+    """Case IDs the FDA has withdrawn, from every quarter's Deleted file."""
+    ids = set()
+    for q in QUARTERS:
+        yyq = q[2:].upper()
+        path = Path(f"data/raw/faers_ascii_{q}/Deleted/DELETE{yyq}.txt")
+        s = pd.read_csv(path, header=None, dtype=str, names=["caseid"])["caseid"].str.strip()
+        ids |= set(s[s.str.isdigit()])
+    return ids
+
+
+demo = load("DEMO", ["primaryid", "caseid", "caseversion"])
+drug = load("DRUG", ["primaryid", "role_cod", "drugname", "prod_ai"])
+reac = load("REAC", ["primaryid", "pt"])
+# One version per case: drop deleted cases, then keep the latest version
+print("Reports before cleaning:", len(demo))
+demo = demo[~demo["caseid"].isin(load_deleted())].copy()
+demo["caseversion"] = demo["caseversion"].astype(int)
+demo = demo.sort_values("caseversion").drop_duplicates("caseid", keep="last")
+print("Reports after removing deleted cases and old versions:", len(demo))
+keep = set(demo["primaryid"])
+drug = drug[drug["primaryid"].isin(keep)]
+reac = reac[reac["primaryid"].isin(keep)]
 ai = drug["prod_ai"].fillna("").str.upper().str.strip()
 name = drug["drugname"].fillna("").str.upper().str.strip()
 

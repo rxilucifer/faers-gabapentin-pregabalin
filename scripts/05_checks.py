@@ -1,4 +1,4 @@
-"""Stage 5: check the results a second, independent way."""
+"""Stage 5: check the results a second, independent way (all four quarters)."""
 import csv
 import hashlib
 import subprocess
@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 import pandas as pd
 
-ASC = Path("data/raw/faers_ascii_2024q1/ASCII")
+QUARTERS = ["2024q1", "2024q2", "2024q3", "2024q4"]
 fails = []
 
 
@@ -16,16 +16,39 @@ def check(name, ok):
         fails.append(name)
 
 
-def rows(f):
-    with open(ASC / f, encoding="latin-1", newline="") as fh:
-        yield from csv.DictReader(fh, delimiter="$", quoting=csv.QUOTE_NONE)
+def rows(prefix):
+    """Read one FAERS table from every quarter, one row at a time."""
+    for q in QUARTERS:
+        yyq = q[2:].upper()
+        path = Path(f"data/raw/faers_ascii_{q}/ASCII/{prefix}{yyq}.txt")
+        with open(path, encoding="latin-1", newline="") as fh:
+            yield from csv.DictReader(fh, delimiter="$", quoting=csv.QUOTE_NONE)
 
+
+# Second way to clean: plain Python, no pandas
+deleted = set()
+for q in QUARTERS:
+    yyq = q[2:].upper()
+    path = Path(f"data/raw/faers_ascii_{q}/Deleted/DELETE{yyq}.txt")
+    with open(path, encoding="latin-1") as fh:
+        deleted |= {line.strip() for line in fh if line.strip().isdigit()}
+
+latest = {}  # caseid -> (highest version, its primaryid)
+for r in rows("DEMO"):
+    cid = r["caseid"]
+    if cid in deleted:
+        continue
+    v = int(r["caseversion"])
+    if cid not in latest or v > latest[cid][0]:
+        latest[cid] = (v, r["primaryid"])
+ids = {pid for _, pid in latest.values()}
 
 table = pd.read_csv("data/processed/analysis_table.csv")
 sig = pd.read_csv("results/signal_table.csv")
-ids = {r["primaryid"] for r in rows("DEMO24Q1.txt")}
-check("one table row per report in DEMO", len(table) == len(ids))
+check("one table row per kept case (latest version, not deleted)", len(table) == len(ids))
 check("no report ID appears twice", table.primaryid.is_unique)
+check("table report IDs are exactly the kept IDs",
+      set(table.primaryid.astype(str)) == ids)
 
 g = (table.gabapentin == 1) & (table.pregabalin == 0)
 p = (table.pregabalin == 1) & (table.gabapentin == 0)
@@ -35,8 +58,8 @@ check("gabapentin + pregabalin + both + neither = all reports",
       g.sum() + p.sum() + both.sum() + neither.sum() == len(table))
 
 gab, pre = set(), set()
-for r in rows("DRUG24Q1.txt"):
-    if r["role_cod"] not in ("PS", "SS"):
+for r in rows("DRUG"):
+    if r["primaryid"] not in ids or r["role_cod"] not in ("PS", "SS"):
         continue
     ai, nm = r["prod_ai"].upper().strip(), r["drugname"].upper().strip()
     if ai == "GABAPENTIN" or (ai == "" and nm in ("GABAPENTIN", "NEURONTIN")):
@@ -52,7 +75,7 @@ check("pregabalin-only count matches a second count",
 
 RESP = {"RESPIRATORY DEPRESSION", "RESPIRATORY FAILURE", "RESPIRATORY ARREST",
         "HYPOVENTILATION", "ACUTE RESPIRATORY FAILURE"}
-resp = {r["primaryid"] for r in rows("REAC24Q1.txt")
+resp = {r["primaryid"] for r in rows("REAC")
         if r["pt"].upper().strip() in RESP} & ids
 check("respiratory report count matches a second count",
       table.resp_dep.sum() == len(resp))
