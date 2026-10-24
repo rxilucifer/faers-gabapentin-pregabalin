@@ -1,24 +1,3 @@
-Claude
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Readme · MD
 # Gabapentin vs pregabalin: respiratory depression in FAERS
  
 A pharmacovigilance signal-detection project on public FDA data, written in Python. It covers all four quarters of 2024. Every result is checked a second way.
