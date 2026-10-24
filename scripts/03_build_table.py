@@ -1,4 +1,4 @@
-"""Stage 3: build one row per report with four yes/no flags."""
+"""Stage 3: build one row per report with yes/no flags (all four quarters of 2024)."""
 from pathlib import Path
 import pandas as pd
 
@@ -33,6 +33,7 @@ def load_deleted():
 demo = load("DEMO", ["primaryid", "caseid", "caseversion"])
 drug = load("DRUG", ["primaryid", "role_cod", "drugname", "prod_ai"])
 reac = load("REAC", ["primaryid", "pt"])
+
 # One version per case: drop deleted cases, then keep the latest version
 print("Reports before cleaning:", len(demo))
 demo = demo[~demo["caseid"].isin(load_deleted())].copy()
@@ -42,6 +43,7 @@ print("Reports after removing deleted cases and old versions:", len(demo))
 keep = set(demo["primaryid"])
 drug = drug[drug["primaryid"].isin(keep)]
 reac = reac[reac["primaryid"].isin(keep)]
+
 ai = drug["prod_ai"].fillna("").str.upper().str.strip()
 name = drug["drugname"].fillna("").str.upper().str.strip()
 
@@ -61,8 +63,11 @@ opioid = ai.str.contains("|".join(OPIOIDS))  # any role counts
 pt = reac["pt"].fillna("").str.upper().str.strip()
 print("Reaction terms containing RESPIRAT (top 12):")
 print(pt[pt.str.contains("RESPIRAT")].value_counts().head(12).to_string())
+
+# Main outcome and the stricter outcome used for the sensitivity analysis
 RESP = ["RESPIRATORY DEPRESSION", "RESPIRATORY FAILURE",
-           "RESPIRATORY ARREST", "HYPOVENTILATION", "ACUTE RESPIRATORY FAILURE"]
+        "RESPIRATORY ARREST", "HYPOVENTILATION", "ACUTE RESPIRATORY FAILURE"]
+RESP_STRICT = ["RESPIRATORY DEPRESSION", "RESPIRATORY ARREST", "HYPOVENTILATION"]
 
 table = pd.DataFrame({"primaryid": demo["primaryid"]}).set_index("primaryid")
 table["gabapentin"] = drug["primaryid"][gaba & suspect].drop_duplicates() \
@@ -73,11 +78,13 @@ table["opioid"] = drug["primaryid"][opioid].drop_duplicates() \
     .to_frame().assign(v=1).set_index("primaryid")["v"]
 table["resp_dep"] = reac["primaryid"][pt.isin(RESP)].drop_duplicates() \
     .to_frame().assign(v=1).set_index("primaryid")["v"]
+table["resp_strict"] = reac["primaryid"][pt.isin(RESP_STRICT)].drop_duplicates() \
+    .to_frame().assign(v=1).set_index("primaryid")["v"]
 table = table.fillna(0).astype(int).reset_index()
 
 table.to_csv(OUT / "analysis_table.csv", index=False)
 print("\nReports:", len(table))
-for c in ["gabapentin", "pregabalin", "opioid", "resp_dep"]:
+for c in ["gabapentin", "pregabalin", "opioid", "resp_dep", "resp_strict"]:
     print(c, int(table[c].sum()))
 print("Both drugs on one report:",
       int(((table.gabapentin == 1) & (table.pregabalin == 1)).sum()))

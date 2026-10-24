@@ -1,0 +1,10 @@
+reports,comparison,a,b,c,d,PRR,ROR,low,high
+all,gabapentin vs neither,105,5163,1603,1466771,18.26,18.61,15.25,22.71
+all,pregabalin vs neither,72,6444,1603,1466771,10.12,10.22,8.06,12.96
+all,gabapentin vs pregabalin,105,5163,72,6444,1.8,1.82,1.35,2.46
+opioid,gabapentin vs neither,73,1857,597,56886,3.64,3.75,2.92,4.8
+opioid,pregabalin vs neither,52,3146,597,56886,1.57,1.57,1.18,2.1
+opioid,gabapentin vs pregabalin,73,1857,52,3146,2.33,2.38,1.66,3.41
+no opioid,gabapentin vs neither,32,3306,1006,1409885,13.44,13.57,9.53,19.32
+no opioid,pregabalin vs neither,20,3298,1006,1409885,8.45,8.5,5.45,13.25
+no opioid,gabapentin vs pregabalin,32,3306,20,3298,1.59,1.6,0.91,2.8
