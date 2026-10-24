@@ -63,8 +63,8 @@ The overall result is almost unchanged. The opioid and no-opioid intervals still
     pip install pandas
     python scripts/03_build_table.py
     python scripts/04_signal.py
-    python scripts/06_sensitivity.py
     python scripts/05_checks.py
+    python scripts/06_sensitivity.py
  
 Scripts 01 and 02 only look at the raw data (01 covers 2024 Q1 only). Script 05 runs 9 checks, including a second independent count and a re-run that must give an identical results file.
  
