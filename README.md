@@ -1,4 +1,5 @@
 # Gabapentin vs pregabalin: respiratory depression in FAERS
+Preprint: Nomani RA. Respiratory depression reports with gabapentin versus pregabalin in the FDA Adverse Event Reporting System, 2024. Zenodo, 2026. https://doi.org/10.5281/zenodo.23827750
  
 A pharmacovigilance signal-detection project on public FDA data, written in Python. It covers all four quarters of 2024. Key counts are checked a second way.
 ## Question
